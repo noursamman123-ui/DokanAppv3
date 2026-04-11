@@ -1,0 +1,15 @@
+println "NODE_CHECK_START"
+def nodePath = "unknown"
+try {
+    def stdout = new ByteArrayOutputStream()
+    exec {
+        commandLine 'which', 'node'
+        standardOutput = stdout
+    }
+    nodePath = stdout.toString().trim()
+} catch (Exception e) {
+    nodePath = "not found: " + e.message
+}
+println "NODE_PATH: " + nodePath
+println "PATH_ENV: " + System.getenv("PATH")
+println "NODE_CHECK_END"

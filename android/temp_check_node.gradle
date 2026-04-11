@@ -1,0 +1,14 @@
+task checkNode {
+    doLast {
+        try {
+            def stdout = new ByteArrayOutputStream()
+            exec {
+                commandLine 'which', 'node'
+                standardOutput = stdout
+            }
+            println "NODE_PATH:" + stdout.toString().trim()
+        } catch (Exception e) {
+            println "NODE_PATH:NOT_FOUND"
+        }
+    }
+}

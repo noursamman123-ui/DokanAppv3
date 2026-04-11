@@ -1,0 +1,1267 @@
+/**
+ * Checkout Screen – Shipping/billing address, payment method, OTP verification, and order summary.
+ */
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  StatusBar,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  FlatList,
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { CartStackParamList } from '../../../navigation/types';
+import { useCartStore } from '../../../store/cartStore';
+import { useAuthStore } from '../../../store/authStore';
+import { OrdersService } from '../../../api/orders.service';
+import { CheckoutOtpService } from '../../../api/checkout-otp.service';
+import { BootstrapService } from '../../../api/bootstrap.service';
+import { CartService } from '../../../api/cart.service';
+import { TokenStorage } from '../../../utils/storage';
+import { UserAddress } from '../../../types';
+import { Colors } from '../../../theme/colors';
+import { Typography, FontFamily, FontSize } from '../../../theme/typography';
+import { Spacing, BorderRadius } from '../../../theme/spacing';
+import { Shadows } from '../../../theme/shadows';
+import { decodeHtmlEntities, formatPrice, stripHtml } from '../../../utils/formatters';
+
+type NavProp = NativeStackNavigationProp<CartStackParamList, 'Checkout'>;
+
+const SYRIAN_GOVERNORATES = [
+  'دمشق',
+  'ريف دمشق',
+  'حلب',
+  'حمص',
+  'حماة',
+  'اللاذقية',
+  'طرطوس',
+  'إدلب',
+  'درعا',
+  'السويداء',
+  'القنيطرة',
+  'دير الزور',
+  'الحسكة',
+  'الرقة',
+];
+
+type PhoneCountryOption = {
+  iso: 'SY' | 'AE' | 'SA' | 'LB';
+  name: string;
+  dialCode: string;
+};
+
+const PHONE_COUNTRIES: PhoneCountryOption[] = [
+  { iso: 'SY', name: 'سوريا', dialCode: '+963' },
+  { iso: 'AE', name: 'الإمارات', dialCode: '+971' },
+  { iso: 'SA', name: 'السعودية', dialCode: '+966' },
+  { iso: 'LB', name: 'لبنان', dialCode: '+961' },
+];
+
+const normalizeDigits = (value: string) => value.replace(/\D+/g, '');
+
+const splitPhoneByCountry = (rawPhone?: string) => {
+  const digits = normalizeDigits(rawPhone ?? '');
+  if (!digits) {
+    return { phone_country: 'SY' as const, phone_local: '' };
+  }
+
+  const withoutLeadingZeros = digits.startsWith('00') ? digits.slice(2) : digits;
+
+  const match = PHONE_COUNTRIES.find((country) =>
+    withoutLeadingZeros.startsWith(country.dialCode.replace('+', ''))
+  );
+
+  if (match) {
+    const local = withoutLeadingZeros.slice(match.dialCode.replace('+', '').length).replace(/^0+/, '');
+    return {
+      phone_country: match.iso,
+      phone_local: local,
+    };
+  }
+
+  return {
+    phone_country: 'SY' as const,
+    phone_local: withoutLeadingZeros.replace(/^0+/, ''),
+  };
+};
+
+const extractOrderIdentifiers = (payload: unknown) => {
+  const data = (payload ?? {}) as Record<string, unknown>;
+  const nestedOrder = (data.order ?? null) as Record<string, unknown> | null;
+
+  const idCandidates = [data.id, data.order_id, nestedOrder?.id];
+  const parsedId = idCandidates
+    .map((candidate) => Number(candidate))
+    .find((candidate) => Number.isFinite(candidate) && candidate > 0);
+
+  const numberCandidates = [
+    data.number,
+    data.order_number,
+    nestedOrder?.number,
+    data.order_key,
+  ];
+
+  const parsedNumber = numberCandidates
+    .map((candidate) => (typeof candidate === 'string' ? candidate.trim() : ''))
+    .find((candidate) => candidate.length > 0 && candidate !== 'undefined');
+
+  const orderId = parsedId ? Math.trunc(parsedId) : null;
+  const orderNumber = parsedNumber ?? (orderId ? String(orderId) : '');
+
+  return { orderId, orderNumber };
+};
+
+const mapOtpErrorMessage = (
+  error: unknown,
+  fallbackMessage: string
+) => {
+  const apiError = error as { code?: string; message?: string };
+
+  if (apiError?.code === 'phone_not_whatsapp') {
+    return 'رقم الهاتف غير مرتبط بواتساب. يرجى إدخال رقم واتساب صالح.';
+  }
+
+  if (apiError?.code === 'unsupported_phone_country') {
+    return 'دولة رقم الهاتف غير مدعومة حالياً.';
+  }
+
+  if (apiError?.code === 'otp_rate_limited') {
+    return 'تم إرسال رمز مؤخرًا. يرجى الانتظار قليلًا ثم إعادة المحاولة.';
+  }
+
+  if (apiError?.code === 'otp_invalid') {
+    return 'رمز التحقق غير صحيح.';
+  }
+
+  if (apiError?.code === 'otp_expired') {
+    return 'انتهت صلاحية الرمز. يرجى طلب رمز جديد.';
+  }
+
+  if (apiError?.code === 'otp_max_attempts') {
+    return 'تم تجاوز عدد محاولات التحقق المسموح. يرجى طلب رمز جديد.';
+  }
+
+  if (apiError?.code === 'otp_cart_mismatch') {
+    return 'جلسة السلة تغيّرت. يرجى إعادة إرسال رمز التحقق.';
+  }
+
+  if (apiError?.code === 'NETWORK_ERROR') {
+    return 'تعذر الاتصال بالخادم. تحقق من الإنترنت وحاول مجددًا.';
+  }
+
+  return apiError?.message ?? fallbackMessage;
+};
+
+export default function CheckoutScreen() {
+  const navigation = useNavigation<NavProp>();
+  const queryClient = useQueryClient();
+  const { items, totalPrice, clearCart, couponCode } = useCartStore();
+  const user = useAuthStore((s) => s.user);
+  const total = totalPrice();
+
+  const parseMoney = (value: string | number | undefined, fallback = 0) => {
+    if (value === undefined || value === null) {
+      return fallback;
+    }
+
+    const numeric = typeof value === 'number'
+      ? value
+      : parseFloat(String(value).replace(/[^\d.-]/g, ''));
+
+    return Number.isFinite(numeric) ? numeric : fallback;
+  };
+
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+
+  const [notes, setNotes] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [isCityModalVisible, setIsCityModalVisible] = useState(false);
+  const [isPhoneCountryModalVisible, setIsPhoneCountryModalVisible] = useState(false);
+
+  const [isOtpModalVisible, setIsOtpModalVisible] = useState(false);
+  const [otpSessionId, setOtpSessionId] = useState('');
+  const [otpMaskedPhone, setOtpMaskedPhone] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpExpiresAt, setOtpExpiresAt] = useState(0);
+  const [otpResendAt, setOtpResendAt] = useState(0);
+  const [otpSecondsLeft, setOtpSecondsLeft] = useState(0);
+  const [resendSecondsLeft, setResendSecondsLeft] = useState(0);
+
+  const { data: bootstrapData, isLoading: isPaymentMethodsLoading } = useQuery({
+    queryKey: ['bootstrap'],
+    queryFn: BootstrapService.getBootstrapData,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: checkoutCart } = useQuery({
+    queryKey: ['checkout-cart-preview', user?.id ?? 'guest', items.length, total],
+    queryFn: CartService.getCart,
+    staleTime: 30 * 1000,
+    enabled: items.length > 0,
+  });
+
+  const initialPhone = splitPhoneByCountry(user?.shipping.phone ?? user?.billing.phone ?? user?.phone ?? '');
+
+  const [shippingForm, setShippingForm] = useState({
+    first_name: user?.shipping.first_name ?? user?.first_name ?? '',
+    last_name: user?.shipping.last_name ?? user?.last_name ?? '',
+    address_1: user?.shipping.address_1 ?? '',
+    address_2: user?.shipping.address_2 ?? '',
+    city: user?.shipping.city ?? user?.shipping.state ?? '',
+    state: user?.shipping.state ?? user?.shipping.city ?? '',
+    postcode: user?.shipping.postcode ?? '',
+    country: 'SY',
+    phone_country: initialPhone.phone_country,
+    phone_local: initialPhone.phone_local,
+    email: user?.billing.email ?? user?.email ?? '',
+  });
+
+  useEffect(() => {
+    if (!isOtpModalVisible) {
+      setOtpSecondsLeft(0);
+      setResendSecondsLeft(0);
+      return;
+    }
+
+    const tick = () => {
+      const now = Date.now();
+      setOtpSecondsLeft(Math.max(0, Math.ceil((otpExpiresAt - now) / 1000)));
+      setResendSecondsLeft(Math.max(0, Math.ceil((otpResendAt - now) / 1000)));
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [isOtpModalVisible, otpExpiresAt, otpResendAt]);
+
+  const applySavedAddress = (address?: UserAddress | null) => {
+    if (!address) {
+      return;
+    }
+
+    const selectedCity = (address.city || address.state || '').trim();
+    const parsedPhone = splitPhoneByCountry(address.phone ?? user?.phone ?? user?.billing.phone ?? '');
+
+    setShippingForm({
+      first_name: address.first_name ?? user?.first_name ?? '',
+      last_name: address.last_name ?? user?.last_name ?? '',
+      address_1: address.address_1 ?? '',
+      address_2: address.address_2 ?? '',
+      city: selectedCity,
+      state: selectedCity,
+      postcode: address.postcode ?? '',
+      country: 'SY',
+      phone_country: parsedPhone.phone_country,
+      phone_local: parsedPhone.phone_local,
+      email: address.email ?? user?.email ?? '',
+    });
+  };
+
+  const openSavedAddresses = () => {
+    (navigation.getParent()?.getParent() as any)?.navigate('Account', {
+      screen: 'Addresses',
+    });
+  };
+
+  const paymentMethods = useMemo(
+    () => (bootstrapData?.payment_gateways ?? []).filter((gateway) => gateway.enabled),
+    [bootstrapData?.payment_gateways]
+  );
+
+  const selectedPhoneCountry = useMemo(
+    () => PHONE_COUNTRIES.find((country) => country.iso === shippingForm.phone_country) ?? PHONE_COUNTRIES[0],
+    [shippingForm.phone_country]
+  );
+
+  const buildFullPhoneNumber = () => {
+    const local = normalizeDigits(shippingForm.phone_local).replace(/^0+/, '');
+    if (!local) {
+      return '';
+    }
+    return `${selectedPhoneCountry.dialCode}${local}`;
+  };
+
+  const currencySymbol = checkoutCart?.totals?.currency_symbol || 'ل.س';
+  const subtotalAmount = parseMoney(checkoutCart?.totals?.subtotal, total);
+  const shippingAmount = parseMoney(checkoutCart?.totals?.shipping_total, 0);
+  const discountAmount = parseMoney(checkoutCart?.totals?.discount_total, 0);
+
+  const selectedShippingRate = useMemo(() => {
+    const packages = checkoutCart?.shipping_rates ?? [];
+
+    for (const shippingPackage of packages) {
+      const selected = shippingPackage.shipping_rates.find((rate) => rate.selected);
+      if (selected) {
+        return selected;
+      }
+    }
+
+    return packages[0]?.shipping_rates?.[0] ?? null;
+  }, [checkoutCart?.shipping_rates]);
+
+  const shippingDuration = useMemo(() => {
+    const normalizeText = (value?: string) =>
+      decodeHtmlEntities(stripHtml(value ?? ''))
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const looksLikeDuration = (value: string) =>
+      /(?:خلال|within|مدة|deliver|delivery|shipping)/i.test(value) &&
+      /(?:يوم|أيام|day|days|ساعة|ساعات|hour|hours|أسبوع|أسابيع|week|weeks)/i.test(value);
+
+    if (!selectedShippingRate) {
+      return 'غير محددة';
+    }
+
+    const directDuration = normalizeText(selectedShippingRate.delivery_time);
+    if (directDuration) {
+      return directDuration;
+    }
+
+    const fromTitle = normalizeText(selectedShippingRate.name);
+    if (fromTitle && looksLikeDuration(fromTitle)) {
+      return fromTitle;
+    }
+
+    const fromDescription = normalizeText(selectedShippingRate.description);
+    if (fromDescription && looksLikeDuration(fromDescription)) {
+      return fromDescription;
+    }
+
+    for (const rawMeta of selectedShippingRate.meta_data ?? []) {
+      const meta = rawMeta as {
+        key?: string;
+        value?: string;
+        display_key?: string;
+        display_value?: string;
+      };
+
+      const key = (meta.key ?? meta.display_key ?? '').toLowerCase().trim();
+      const candidates = [
+        normalizeText(meta.value),
+        normalizeText(meta.display_value),
+      ].filter(Boolean);
+
+      for (const candidate of candidates) {
+        if (
+          candidate &&
+          (
+            ['delivery_time', '_delivery_time', 'shipping_duration', '_shipping_duration', 'estimated_delivery', '_estimated_delivery'].includes(key) ||
+            looksLikeDuration(candidate)
+          )
+        ) {
+          return candidate;
+        }
+      }
+    }
+
+    return 'غير محددة';
+  }, [selectedShippingRate]);
+  const finalAmount = parseMoney(
+    checkoutCart?.totals?.total,
+    Math.max(0, subtotalAmount + shippingAmount - discountAmount)
+  );
+
+  useEffect(() => {
+    if (!paymentMethod && paymentMethods.length > 0) {
+      setPaymentMethod(paymentMethods[0].id);
+    }
+  }, [paymentMethod, paymentMethods]);
+
+  const updateField = (field: string, value: string) => {
+    setShippingForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const setGovernorate = (city: string) => {
+    setShippingForm((prev) => ({
+      ...prev,
+      city,
+      state: city,
+    }));
+    setIsCityModalVisible(false);
+  };
+
+  const validateBeforeOtp = () => {
+    const requiredFields = [
+      shippingForm.first_name.trim(),
+      shippingForm.last_name.trim(),
+      shippingForm.city.trim(),
+      shippingForm.address_1.trim(),
+      normalizeDigits(shippingForm.phone_local).trim(),
+    ];
+
+    if (requiredFields.some((value) => value.length === 0)) {
+      Alert.alert('خطأ', 'يرجى تعبئة الحقول المطلوبة: الاسم الأول، اسم العائلة، المدينة، العنوان، ورقم الهاتف.');
+      return false;
+    }
+
+    if (!paymentMethod) {
+      Alert.alert('خطأ', 'لا توجد وسيلة دفع متاحة حالياً لهذا الطلب.');
+      return false;
+    }
+
+    return true;
+  };
+
+  const buildOtpPayload = () => ({
+    first_name: shippingForm.first_name.trim(),
+    last_name: shippingForm.last_name.trim(),
+    city: shippingForm.city.trim(),
+    address_1: shippingForm.address_1.trim(),
+    phone: normalizeDigits(shippingForm.phone_local),
+    phone_country: shippingForm.phone_country,
+    cart_token: TokenStorage.getCartToken(),
+  });
+
+  const requestOtp = async () => {
+    setIsSendingOtp(true);
+    try {
+      const otpResponse = await CheckoutOtpService.sendOtp(buildOtpPayload());
+      const now = Date.now();
+
+      setOtpSessionId(otpResponse.otp_session_id);
+      setOtpMaskedPhone(otpResponse.masked_phone || buildFullPhoneNumber());
+      setOtpExpiresAt(now + (otpResponse.expires_in ?? 300) * 1000);
+      setOtpResendAt(now + (otpResponse.resend_after ?? 60) * 1000);
+      setOtpCode('');
+      setIsOtpModalVisible(true);
+    } catch (error) {
+      Alert.alert(
+        'تعذر إرسال رمز التحقق',
+        mapOtpErrorMessage(error, 'حدث خطأ أثناء إرسال رمز واتساب. حاول مرة أخرى.')
+      );
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const createOrderAfterOtp = async (otpProofToken: string) => {
+    setIsPlacingOrder(true);
+
+    try {
+      const selectedCity = shippingForm.city.trim();
+      const fullPhone = buildFullPhoneNumber();
+      const normalizedPostcode = shippingForm.postcode.trim() || '00000';
+
+      const order = await OrdersService.placeOrder(
+        {
+          billing_address: {
+            first_name: shippingForm.first_name.trim(),
+            last_name: shippingForm.last_name.trim(),
+            address_1: shippingForm.address_1.trim(),
+            address_2: shippingForm.address_2.trim(),
+            city: selectedCity,
+            state: selectedCity,
+            postcode: normalizedPostcode,
+            country: 'SY',
+            email: shippingForm.email.trim() || '',
+            phone: fullPhone,
+            company: '',
+          },
+          shipping_address: {
+            first_name: shippingForm.first_name.trim(),
+            last_name: shippingForm.last_name.trim(),
+            address_1: shippingForm.address_1.trim(),
+            address_2: shippingForm.address_2.trim(),
+            city: selectedCity,
+            state: selectedCity,
+            postcode: normalizedPostcode,
+            country: 'SY',
+            phone: fullPhone,
+            company: '',
+          },
+          customer_note: notes,
+          create_account: false,
+          payment_method: paymentMethod,
+          payment_data: [],
+          coupon_code: couponCode ?? undefined,
+        },
+        items,
+        otpProofToken
+      );
+
+      const { orderId, orderNumber } = extractOrderIdentifiers(order);
+
+      if (!orderId) {
+        throw new Error('تم إرسال الطلب لكن تعذر قراءة رقم الطلب من الخادم. يرجى فتح صفحة طلباتي للتأكد من إنشائه.');
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+
+      clearCart();
+      setIsOtpModalVisible(false);
+      setOtpSessionId('');
+      setOtpCode('');
+      navigation.replace('OrderSuccess', { orderId, orderNumber });
+    } catch (error) {
+      const apiError = error as { message?: string };
+      Alert.alert('خطأ في الطلب', apiError?.message ?? 'حدث خطأ أثناء إتمام الطلب.');
+    } finally {
+      setIsPlacingOrder(false);
+    }
+  };
+
+  const handlePlaceOrder = async () => {
+    if (!validateBeforeOtp()) {
+      return;
+    }
+
+    await requestOtp();
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpSessionId) {
+      Alert.alert('رمز التحقق', 'انتهت جلسة التحقق. يرجى إعادة إرسال الرمز.');
+      return;
+    }
+
+    const code = otpCode.replace(/\D+/g, '').trim();
+    if (code.length !== 6) {
+      Alert.alert('رمز التحقق', 'يرجى إدخال رمز مكوّن من 6 أرقام.');
+      return;
+    }
+
+    setIsVerifyingOtp(true);
+    try {
+      const verification = await CheckoutOtpService.verifyOtp({
+        otp_session_id: otpSessionId,
+        code,
+        cart_token: TokenStorage.getCartToken(),
+      });
+
+      await createOrderAfterOtp(verification.otp_proof_token);
+    } catch (error) {
+      Alert.alert(
+        'فشل التحقق',
+        mapOtpErrorMessage(error, 'تعذر التحقق من الرمز. يرجى المحاولة مرة أخرى.')
+      );
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendSecondsLeft > 0) {
+      return;
+    }
+
+    await requestOtp();
+  };
+
+  const isActionLoading = isSendingOtp || isVerifyingOtp || isPlacingOrder;
+
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" />
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Text style={styles.backIcon}>رجوع</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>إتمام الطلب</Text>
+        <View style={styles.backBtn} />
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>عنوان الفاتورة والشحن</Text>
+            <TouchableOpacity onPress={openSavedAddresses}>
+              <Text style={styles.linkText}>العناوين المحفوظة</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.savedActions}>
+            <TouchableOpacity
+              style={styles.savedAddressBtn}
+              onPress={() => applySavedAddress(user?.shipping ?? null)}
+            >
+              <Text style={styles.savedAddressText}>استخدام عنوان الشحن المحفوظ</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.savedAddressBtn}
+              onPress={() => applySavedAddress(user?.billing ?? null)}
+            >
+              <Text style={styles.savedAddressText}>استخدام عنوان الفاتورة المحفوظ</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.fieldWrapper}>
+            <Text style={styles.label}>الاسم الأول *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="أدخل الاسم الأول"
+              placeholderTextColor={Colors.placeholder}
+              value={shippingForm.first_name}
+              onChangeText={(value) => updateField('first_name', value)}
+              textAlign="right"
+            />
+          </View>
+
+          <View style={styles.fieldWrapper}>
+            <Text style={styles.label}>اسم العائلة *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="أدخل اسم العائلة"
+              placeholderTextColor={Colors.placeholder}
+              value={shippingForm.last_name}
+              onChangeText={(value) => updateField('last_name', value)}
+              textAlign="right"
+            />
+          </View>
+
+          <View style={styles.fieldWrapper}>
+            <Text style={styles.label}>الدولة</Text>
+            <View style={styles.lockedInput}>
+              <Text style={styles.lockedInputText}>سوريا</Text>
+            </View>
+          </View>
+
+          <View style={styles.fieldWrapper}>
+            <Text style={styles.label}>المدينة / المحافظة *</Text>
+            <TouchableOpacity
+              style={styles.dropdownInput}
+              onPress={() => setIsCityModalVisible(true)}
+              activeOpacity={0.8}
+            >
+              <Text style={shippingForm.city ? styles.dropdownValue : styles.dropdownPlaceholder}>
+                {shippingForm.city || 'اختر المحافظة'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.fieldWrapper}>
+            <Text style={styles.label}>عنوان الشارع / الحي *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="أدخل عنوان الشارع / الحي"
+              placeholderTextColor={Colors.placeholder}
+              value={shippingForm.address_1}
+              onChangeText={(value) => updateField('address_1', value)}
+              textAlign="right"
+            />
+          </View>
+
+          <View style={styles.fieldWrapper}>
+            <Text style={styles.label}>الحي (اختياري)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="أدخل الحي"
+              placeholderTextColor={Colors.placeholder}
+              value={shippingForm.address_2}
+              onChangeText={(value) => updateField('address_2', value)}
+              textAlign="right"
+            />
+          </View>
+
+          <View style={styles.fieldWrapper}>
+            <Text style={styles.label}>رقم واتساب *</Text>
+            <View style={styles.phoneRow}>
+              <TouchableOpacity
+                style={styles.phoneCountryBtn}
+                onPress={() => setIsPhoneCountryModalVisible(true)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.phoneCountryBtnText}>{selectedPhoneCountry.name}</Text>
+                <Text style={styles.phoneDialCode}>{selectedPhoneCountry.dialCode}</Text>
+              </TouchableOpacity>
+              <TextInput
+                style={styles.phoneInput}
+                placeholder="أدخل الرقم"
+                placeholderTextColor={Colors.placeholder}
+                value={shippingForm.phone_local}
+                onChangeText={(value) => updateField('phone_local', normalizeDigits(value))}
+                keyboardType="phone-pad"
+                textAlign="left"
+              />
+            </View>
+          </View>
+
+          <View style={styles.fieldWrapper}>
+            <Text style={styles.label}>البريد الإلكتروني (اختياري)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="أدخل البريد الإلكتروني"
+              placeholderTextColor={Colors.placeholder}
+              value={shippingForm.email}
+              onChangeText={(value) => updateField('email', value)}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              textAlign="right"
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>طريقة الدفع</Text>
+          {isPaymentMethodsLoading ? (
+            <ActivityIndicator color={Colors.primary} />
+          ) : paymentMethods.length > 0 ? (
+            paymentMethods.map((pm) => (
+              <TouchableOpacity
+                key={pm.id}
+                style={[styles.paymentOption, paymentMethod === pm.id && styles.paymentActive]}
+                onPress={() => setPaymentMethod(pm.id)}
+              >
+                <View style={styles.radioOuter}>
+                  {paymentMethod === pm.id && <View style={styles.radioInner} />}
+                </View>
+                <Text style={styles.paymentIcon}>{pm.id === 'cod' ? '💵' : '🏦'}</Text>
+                <View style={styles.paymentCopy}>
+                  <Text style={styles.paymentLabel}>{pm.title}</Text>
+                  {pm.description ? (
+                    <Text style={styles.paymentDescription}>{pm.description.replace(/<[^>]*>/g, '')}</Text>
+                  ) : null}
+                </View>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <Text style={styles.emptyPaymentText}>لا توجد وسائل دفع متاحة حالياً</Text>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>ملاحظات الطلب (اختياري)</Text>
+          <TextInput
+            style={[styles.input, styles.notesInput]}
+            placeholder="أضف ملاحظات للطلب..."
+            placeholderTextColor={Colors.placeholder}
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+            textAlign="right"
+            textAlignVertical="top"
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>ملخص الطلب</Text>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>عدد المنتجات</Text>
+            <Text style={styles.summaryValue}>{items.length}</Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>المجموع الفرعي</Text>
+            <Text style={styles.summaryValue}>{formatPrice(subtotalAmount, currencySymbol)}</Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>تكلفة الشحن</Text>
+            <Text style={styles.summaryValue}>{formatPrice(shippingAmount, currencySymbol)}</Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>مدة الشحن</Text>
+            <Text style={styles.summaryValue}>{shippingDuration}</Text>
+          </View>
+          {discountAmount > 0 && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>الخصم</Text>
+              <Text style={[styles.summaryValue, { color: Colors.success }]}>
+                - {formatPrice(discountAmount, currencySymbol)}
+              </Text>
+            </View>
+          )}
+          {couponCode && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>كود الخصم</Text>
+              <Text style={[styles.summaryValue, { color: Colors.success }]}>{couponCode}</Text>
+            </View>
+          )}
+          <View style={[styles.summaryRow, styles.summaryTotal]}>
+            <Text style={styles.totalLabel}>الإجمالي</Text>
+            <Text style={styles.totalValue}>{formatPrice(finalAmount, currencySymbol)}</Text>
+          </View>
+        </View>
+
+        <View style={{ height: 160 }} />
+      </ScrollView>
+
+      <View style={styles.bottomBar}>
+        <TouchableOpacity
+          style={[styles.placeOrderBtn, isActionLoading && styles.btnDisabled]}
+          onPress={handlePlaceOrder}
+          disabled={isActionLoading}
+        >
+          {isSendingOtp ? (
+            <ActivityIndicator color={Colors.textInverse} />
+          ) : (
+            <Text style={styles.placeOrderText}>تأكيد الطلب – {formatPrice(finalAmount, currencySymbol)}</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      <Modal
+        visible={isCityModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsCityModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.cityModalCard}>
+            <View style={styles.cityModalHeader}>
+              <Text style={styles.cityModalTitle}>اختر المحافظة</Text>
+              <TouchableOpacity onPress={() => setIsCityModalVisible(false)}>
+                <Text style={styles.closeText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={SYRIAN_GOVERNORATES}
+              keyExtractor={(item) => item}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <TouchableOpacity style={styles.cityOption} onPress={() => setGovernorate(item)}>
+                  <Text style={styles.cityOptionText}>{item}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={isOtpModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !isActionLoading && setIsOtpModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.otpModalCard}>
+            <View style={styles.otpHeader}>
+              <Text style={styles.otpTitle}>تأكيد الطلب عبر واتساب</Text>
+              <TouchableOpacity
+                onPress={() => !isActionLoading && setIsOtpModalVisible(false)}
+                disabled={isActionLoading}
+              >
+                <Text style={styles.closeText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.otpHint}>
+              أدخل رمز التحقق المكوّن من 6 أرقام المرسل إلى:
+            </Text>
+            <Text style={styles.otpPhone}>{otpMaskedPhone || buildFullPhoneNumber()}</Text>
+
+            <TextInput
+              style={styles.otpInput}
+              value={otpCode}
+              onChangeText={(value) => setOtpCode(value.replace(/\D+/g, '').slice(0, 6))}
+              keyboardType="number-pad"
+              placeholder="أدخل رمز OTP"
+              placeholderTextColor={Colors.placeholder}
+              textAlign="center"
+              maxLength={6}
+            />
+
+            <Text style={styles.timerText}>ينتهي الرمز خلال: {otpSecondsLeft} ثانية</Text>
+
+            <TouchableOpacity
+              style={[styles.verifyBtn, isActionLoading && styles.btnDisabled]}
+              onPress={handleVerifyOtp}
+              disabled={isActionLoading}
+            >
+              {isVerifyingOtp || isPlacingOrder ? (
+                <ActivityIndicator color={Colors.textInverse} />
+              ) : (
+                <Text style={styles.verifyBtnText}>تأكيد الطلب</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.resendBtn, resendSecondsLeft > 0 && styles.btnDisabled]}
+              onPress={handleResendOtp}
+              disabled={resendSecondsLeft > 0 || isActionLoading}
+            >
+              {isSendingOtp ? (
+                <ActivityIndicator color={Colors.textPrimary} />
+              ) : (
+                <Text style={styles.resendBtnText}>
+                  {resendSecondsLeft > 0 ? `إعادة إرسال الرمز (${resendSecondsLeft})` : 'إعادة إرسال الرمز'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={isPhoneCountryModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsPhoneCountryModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.cityModalCard}>
+            <View style={styles.cityModalHeader}>
+              <Text style={styles.cityModalTitle}>اختر دولة الرقم</Text>
+              <TouchableOpacity onPress={() => setIsPhoneCountryModalVisible(false)}>
+                <Text style={styles.closeText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={PHONE_COUNTRIES}
+              keyExtractor={(item) => item.iso}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.countryOption}
+                  onPress={() => {
+                    updateField('phone_country', item.iso);
+                    setIsPhoneCountryModalVisible(false);
+                  }}
+                >
+                  <Text style={styles.countryOptionCode}>{item.dialCode}</Text>
+                  <Text style={styles.countryOptionText}>{item.name}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.background },
+  header: {
+    backgroundColor: Colors.surface,
+    paddingTop: Spacing[10],
+    paddingBottom: Spacing[3],
+    paddingHorizontal: Spacing[4],
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    ...Shadows.sm,
+  },
+  backBtn: { width: 40, alignItems: 'center' },
+  backIcon: { fontSize: 22, color: Colors.textPrimary },
+  headerTitle: { ...Typography.h4, color: Colors.textPrimary, fontFamily: FontFamily.arabicBold },
+  scrollContent: { padding: Spacing[4], gap: Spacing[3] },
+  section: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing[4],
+    ...Shadows.card,
+  },
+  sectionHeader: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing[3],
+  },
+  sectionTitle: {
+    ...Typography.h4,
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.arabicBold,
+    textAlign: 'right',
+    marginBottom: Spacing[3],
+  },
+  linkText: { ...Typography.label, color: Colors.primary, fontFamily: FontFamily.arabicMedium },
+  savedActions: { gap: Spacing[2], marginBottom: Spacing[3] },
+  savedAddressBtn: {
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primarySurface,
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing[2.5],
+    paddingHorizontal: Spacing[3],
+  },
+  savedAddressText: {
+    ...Typography.label,
+    color: Colors.primary,
+    textAlign: 'right',
+    fontFamily: FontFamily.arabicMedium,
+  },
+  fieldWrapper: { marginBottom: Spacing[3], gap: Spacing[1] },
+  label: {
+    ...Typography.label,
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.arabicMedium,
+    textAlign: 'right',
+  },
+  input: {
+    backgroundColor: Colors.inputBackground,
+    borderWidth: 1,
+    borderColor: Colors.inputBorder,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing[3],
+    paddingVertical: Spacing[2.5],
+    fontSize: FontSize.base,
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.arabicRegular,
+  },
+  phoneRow: {
+    flexDirection: 'row-reverse',
+    gap: Spacing[2],
+    alignItems: 'center',
+  },
+  phoneCountryBtn: {
+    minWidth: 132,
+    backgroundColor: Colors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing[2.5],
+    paddingVertical: Spacing[2.5],
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  phoneCountryBtnText: {
+    ...Typography.label,
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.arabicMedium,
+    textAlign: 'center',
+  },
+  phoneDialCode: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontFamily: FontFamily.bold,
+    textAlign: 'center',
+  },
+  phoneInput: {
+    flex: 1,
+    backgroundColor: Colors.inputBackground,
+    borderWidth: 1,
+    borderColor: Colors.inputBorder,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing[3],
+    paddingVertical: Spacing[2.5],
+    fontSize: FontSize.base,
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.bold,
+  },
+  lockedInput: {
+    backgroundColor: Colors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing[3],
+    paddingVertical: Spacing[2.5],
+  },
+  lockedInputText: {
+    ...Typography.body,
+    color: Colors.textSecondary,
+    textAlign: 'right',
+    fontFamily: FontFamily.arabicMedium,
+  },
+  dropdownInput: {
+    backgroundColor: Colors.inputBackground,
+    borderWidth: 1,
+    borderColor: Colors.inputBorder,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing[3],
+    paddingVertical: Spacing[3],
+  },
+  dropdownValue: {
+    ...Typography.body,
+    color: Colors.textPrimary,
+    textAlign: 'right',
+    fontFamily: FontFamily.arabicMedium,
+  },
+  dropdownPlaceholder: {
+    ...Typography.body,
+    color: Colors.placeholder,
+    textAlign: 'right',
+    fontFamily: FontFamily.arabicRegular,
+  },
+  notesInput: { height: 84 },
+  paymentOption: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: Spacing[3],
+    padding: Spacing[3],
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    marginBottom: Spacing[2],
+  },
+  paymentActive: { borderColor: Colors.primary, backgroundColor: Colors.primarySurface },
+  radioOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.primary },
+  paymentIcon: { fontSize: 20 },
+  paymentCopy: { flex: 1, gap: Spacing[1] },
+  paymentLabel: { ...Typography.bodySmall, color: Colors.textPrimary, fontFamily: FontFamily.arabicMedium },
+  paymentDescription: { ...Typography.caption, color: Colors.textSecondary, textAlign: 'right' },
+  emptyPaymentText: { ...Typography.bodySmall, color: Colors.textSecondary, textAlign: 'right' },
+  summaryRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', paddingVertical: Spacing[2] },
+  summaryLabel: { ...Typography.body, color: Colors.textSecondary },
+  summaryValue: { ...Typography.body, color: Colors.textPrimary, fontFamily: FontFamily.arabicMedium },
+  summaryTotal: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.divider,
+    marginTop: Spacing[2],
+    paddingTop: Spacing[3],
+  },
+  totalLabel: { ...Typography.h4, color: Colors.textPrimary, fontFamily: FontFamily.arabicBold },
+  totalValue: { ...Typography.priceLarge, color: Colors.sale, fontFamily: FontFamily.arabicBold },
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: Colors.surface,
+    padding: Spacing[5],
+    paddingBottom: Spacing[8],
+    ...Shadows.xl,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  placeOrderBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.xl,
+    paddingVertical: Spacing[4],
+    alignItems: 'center',
+  },
+  btnDisabled: { opacity: 0.7 },
+  placeOrderText: { ...Typography.button, color: Colors.textInverse, fontFamily: FontFamily.arabicBold },
+
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: Colors.overlay,
+    justifyContent: 'center',
+    paddingHorizontal: Spacing[5],
+  },
+  cityModalCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing[4],
+    maxHeight: '70%',
+  },
+  cityModalHeader: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing[3],
+  },
+  cityModalTitle: {
+    ...Typography.h4,
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.arabicBold,
+  },
+  cityOption: {
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+    paddingVertical: Spacing[3],
+  },
+  cityOptionText: {
+    ...Typography.body,
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.arabicMedium,
+    textAlign: 'right',
+  },
+  countryOption: {
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+    paddingVertical: Spacing[3],
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  countryOptionText: {
+    ...Typography.body,
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.arabicMedium,
+    textAlign: 'right',
+  },
+  countryOptionCode: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+    fontFamily: FontFamily.bold,
+  },
+
+  otpModalCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing[5],
+    ...Shadows.xl,
+  },
+  otpHeader: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing[3],
+  },
+  otpTitle: {
+    ...Typography.h3,
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.arabicBold,
+  },
+  closeText: {
+    fontSize: 22,
+    color: Colors.textTertiary,
+    fontFamily: FontFamily.bold,
+  },
+  otpHint: {
+    ...Typography.body,
+    color: Colors.textSecondary,
+    textAlign: 'right',
+    marginBottom: Spacing[1.5],
+  },
+  otpPhone: {
+    ...Typography.h4,
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.bold,
+    textAlign: 'right',
+    marginBottom: Spacing[3],
+  },
+  otpInput: {
+    backgroundColor: Colors.inputBackground,
+    borderWidth: 1,
+    borderColor: Colors.inputBorder,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing[3],
+    fontSize: 24,
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.bold,
+    letterSpacing: 8,
+    marginBottom: Spacing[2.5],
+  },
+  timerText: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: Spacing[3],
+  },
+  verifyBtn: {
+    backgroundColor: Colors.success,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing[3],
+    alignItems: 'center',
+    marginBottom: Spacing[2],
+  },
+  verifyBtnText: {
+    ...Typography.button,
+    color: Colors.textInverse,
+    fontFamily: FontFamily.arabicBold,
+  },
+  resendBtn: {
+    backgroundColor: Colors.surfaceSecondary,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: Spacing[3],
+    alignItems: 'center',
+  },
+  resendBtnText: {
+    ...Typography.button,
+    color: Colors.textPrimary,
+    fontFamily: FontFamily.arabicMedium,
+  },
+});

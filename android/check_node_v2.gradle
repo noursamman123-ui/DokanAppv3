@@ -1,0 +1,12 @@
+def nodePath = "unknown"
+try {
+    def stdout = new ByteArrayOutputStream()
+    exec {
+        commandLine 'which', 'node'
+        standardOutput = stdout
+    }
+    nodePath = stdout.toString().trim()
+} catch (Exception e) {
+    nodePath = "not_found_" + e.message
+}
+new File("node_path_result.txt").text = nodePath

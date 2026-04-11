@@ -1,0 +1,18 @@
+[versions]
+com-facebook-react = "react-native-gradle-plugin"
+facebook-react = "react-android"
+facebook-react-settings = "+"
+gradle = "8.8.0"
+gradle-toolchains-foojay-resolver-convention = "1.0.0"
+kotlin-gradle-plugin = "2.0.21"
+compileSdk = "36"
+
+[libraries]
+gradle = { group = "com.android.tools.build", name = "gradle", version.ref = "gradle" }
+kotlin-gradle-plugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin-gradle-plugin" }
+
+[plugins]
+com-facebook-react = { id = "com.facebook.react", version.ref = "facebook-react" }
+facebook-react = { id = "com.facebook.react", version.ref = "com-facebook-react" }
+facebook-react-settings = { id = "com.facebook.react.settings", version.ref = "facebook-react-settings" }
+gradle-toolchains-foojay-resolver-convention = { id = "org.gradle.toolchains.foojay-resolver-convention", version.ref = "gradle-toolchains-foojay-resolver-convention" }
