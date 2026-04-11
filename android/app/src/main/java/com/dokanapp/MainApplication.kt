@@ -32,15 +32,6 @@ class MainApplication : Application(), ReactApplication {
         .dns(
           object : Dns {
             override fun lookup(hostname: String): List<InetAddress> {
-              // Emulator DNS can intermittently fail in debug. Route staging host
-              // directly to IPv4 to keep API calls stable during local testing.
-              if (
-                BuildConfig.DEBUG &&
-                  hostname.equals("staging.dokan.com.sy", ignoreCase = true)
-              ) {
-                return listOf(InetAddress.getByName("72.60.19.204"))
-              }
-
               val addresses = Dns.SYSTEM.lookup(hostname)
               val ipv4Addresses = addresses.filterIsInstance<Inet4Address>()
 

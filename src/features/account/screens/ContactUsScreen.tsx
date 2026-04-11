@@ -9,6 +9,7 @@ import { Colors } from '../../../theme/colors';
 import { Typography, FontFamily } from '../../../theme/typography';
 import { Spacing, BorderRadius } from '../../../theme/spacing';
 import { Shadows } from '../../../theme/shadows';
+import { APP_HOSTNAME } from '../../../config/environment';
 
 type NavProp = NativeStackNavigationProp<AccountStackParamList, 'ContactUs'>;
 
@@ -43,7 +44,7 @@ export default function ContactUsScreen() {
       try {
         return new URL(data.source_url).hostname.replace(/^www\./, '');
       } catch {
-        return 'staging.dokan.com.sy';
+        return APP_HOSTNAME;
       }
     })();
 

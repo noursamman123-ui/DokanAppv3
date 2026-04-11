@@ -2,6 +2,7 @@ import apiClient from './client';
 import { Endpoints } from './endpoints';
 import { ContactInfo } from '../types';
 import { decodeHtmlEntities, stripHtml } from '../utils/formatters';
+import { APP_BASE_URL } from '../config/environment';
 
 const normalizeSpace = (value: string) => value.replace(/\s+/g, ' ').trim();
 
@@ -75,7 +76,7 @@ const extractContactInfo = (html: string): ContactInfo => {
   ) || 'تواصل معنا';
 
   return {
-    source_url: 'https://staging.dokan.com.sy/contact/',
+    source_url: `${APP_BASE_URL}/contact/`,
     title,
     description: decodedDescription,
     phones,
@@ -98,4 +99,3 @@ export const ContactService = {
     return extractContactInfo(html);
   },
 };
-

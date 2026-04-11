@@ -4,7 +4,7 @@
  */
 
 // Base URL comes from environment — never from this file directly.
-// In .env: API_BASE_URL=https://staging.dokan.com.sy
+// In .env: API_BASE_URL=https://dokan.com.sy
 
 export const WC_API = '/wp-json/wc/v3';
 export const WC_STORE_API = '/wp-json/wc/store/v1';

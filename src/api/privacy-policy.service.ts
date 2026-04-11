@@ -2,6 +2,7 @@ import apiClient from './client';
 import { Endpoints } from './endpoints';
 import { PrivacyPolicyContent } from '../types';
 import { decodeHtmlEntities, stripHtml } from '../utils/formatters';
+import { APP_BASE_URL } from '../config/environment';
 
 type WpPage = {
   id: number;
@@ -55,10 +56,9 @@ export const PrivacyPolicyService = {
     const body = blocks.join('\n\n').trim();
 
     return {
-      source_url: targetPage.link ?? `https://staging.dokan.com.sy${Endpoints.pages.policiesUrl}`,
+      source_url: targetPage.link ?? `${APP_BASE_URL}${Endpoints.pages.policiesUrl}`,
       title,
       body,
     };
   },
 };
-

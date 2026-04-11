@@ -15,10 +15,9 @@ import axios, {
 } from 'axios';
 import { TokenStorage } from '../utils/storage';
 import { ApiError } from '../types';
+import { APP_BASE_URL } from '../config/environment';
 
-// Base URL from environment (set via .env / react-native-config)
-// IMPORTANT: Never hardcode credentials here
-const BASE_URL = 'https://staging.dokan.com.sy';
+const BASE_URL = APP_BASE_URL;
 
 // ─── Create Axios Instance ────────────────────────────────────────────────
 const apiClient: AxiosInstance = axios.create({

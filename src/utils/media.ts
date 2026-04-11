@@ -1,6 +1,7 @@
 import FastImage from 'react-native-fast-image';
+import { APP_BASE_URL } from '../config/environment';
 
-const WORDPRESS_BASE_URL = 'https://staging.dokan.com.sy';
+const WORDPRESS_BASE_URL = APP_BASE_URL;
 
 export const resolveMediaUrl = (value?: string | null): string => {
   if (!value) {
