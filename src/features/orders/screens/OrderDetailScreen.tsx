@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing[4], flexDirection: 'row-reverse', alignItems: 'center',
     justifyContent: 'space-between', ...Shadows.sm,
   },
-  backIcon: { fontSize: 22, color: Colors.textPrimary },
+  backIcon: { fontSize: 16, color: Colors.textPrimary },
   title: { ...Typography.h4, color: Colors.textPrimary, fontFamily: FontFamily.arabicBold },
   content: { padding: Spacing[4], gap: Spacing[3] },
   section: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing[4], ...Shadows.card },

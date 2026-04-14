@@ -9,6 +9,7 @@ import { FlashList } from '@shopify/flash-list';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useInfiniteQuery } from '@tanstack/react-query';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { HomeStackParamList } from '../../../navigation/types';
 import { ProductsService } from '../../../api/products.service';
 import { Product, ProductFilters } from '../../../types';
@@ -144,7 +145,7 @@ export default function ProductListScreen() {
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>📦</Text>
+              <MaterialCommunityIcons name="package-variant-closed" style={styles.emptyIcon} />
               <Text style={styles.emptyText}>لا توجد منتجات حالياً</Text>
             </View>
           }
@@ -167,7 +168,7 @@ const styles = StyleSheet.create({
     ...Shadows.sm,
   },
   backBtn: { width: 40, alignItems: 'center' },
-  backIcon: { fontSize: 22, color: Colors.textPrimary },
+  backIcon: { fontSize: 16, color: Colors.textPrimary },
   headerTitle: {
     ...Typography.h4, color: Colors.textPrimary,
     fontFamily: FontFamily.arabicBold, flex: 1, textAlign: 'center',

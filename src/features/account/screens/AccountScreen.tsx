@@ -5,6 +5,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { AccountStackParamList } from '../../../navigation/types';
 import { useAuthStore } from '../../../store/authStore';
 import { Colors } from '../../../theme/colors';
@@ -19,13 +20,13 @@ export default function AccountScreen() {
   const { user, isAuthenticated, logout } = useAuthStore();
 
   const menuItems = [
-    { icon: '📦', label: 'طلباتي', screen: 'Orders' as const, requireAuth: true },
-    { icon: '✏️', label: 'تعديل الملف الشخصي', screen: 'EditProfile' as const, requireAuth: true },
-    { icon: '📍', label: 'عناويني', screen: 'Addresses' as const, requireAuth: true },
-    { icon: '🔔', label: 'الإشعارات', screen: 'Notifications' as const, requireAuth: false },
-    { icon: '🔒', label: 'سياسة الخصوصية', screen: 'PrivacyPolicy' as const, requireAuth: false },
-    { icon: '📋', label: 'الشروط والأحكام', screen: 'Terms' as const, requireAuth: false },
-    { icon: '📞', label: 'تواصل معنا', screen: 'ContactUs' as const, requireAuth: false },
+    { icon: 'package-variant-closed', label: 'طلباتي', screen: 'Orders' as const, requireAuth: true },
+    { icon: 'account-edit-outline', label: 'تعديل الملف الشخصي', screen: 'EditProfile' as const, requireAuth: true },
+    { icon: 'map-marker-outline', label: 'عناويني', screen: 'Addresses' as const, requireAuth: true },
+    { icon: 'bell-outline', label: 'الإشعارات', screen: 'Notifications' as const, requireAuth: false },
+    { icon: 'shield-lock-outline', label: 'سياسة الخصوصية', screen: 'PrivacyPolicy' as const, requireAuth: false },
+    { icon: 'file-document-outline', label: 'الشروط والأحكام', screen: 'Terms' as const, requireAuth: false },
+    { icon: 'phone-outline', label: 'تواصل معنا', screen: 'ContactUs' as const, requireAuth: false },
   ];
 
   const handleMenuPress = (item: typeof menuItems[0]) => {
@@ -64,7 +65,7 @@ export default function AccountScreen() {
             onPress={() => navigation.getParent()?.getParent()?.navigate('Auth', { screen: 'Login' })}
           >
             <View style={styles.loginIcon}>
-              <Text style={styles.loginIconText}>👤</Text>
+              <MaterialCommunityIcons name="account" style={styles.loginIconText} />
             </View>
             <View>
               <Text style={styles.loginTitle}>سجّل دخولك</Text>
@@ -82,10 +83,10 @@ export default function AccountScreen() {
               onPress={() => handleMenuPress(item)}
             >
               <View style={styles.menuRow}>
-                <Text style={styles.menuIcon}>{item.icon}</Text>
+                <MaterialCommunityIcons name={item.icon as any} style={styles.menuIcon} />
                 <Text style={styles.menuLabel}>{item.label}</Text>
               </View>
-              <Text style={styles.menuArrow}>←</Text>
+              <MaterialCommunityIcons name="chevron-left" style={styles.menuArrow} />
             </TouchableOpacity>
           ))}
         </View>
@@ -134,7 +135,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.primary, borderStyle: 'dashed',
   },
   loginIcon: { width: 50, height: 50, borderRadius: BorderRadius.full, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
-  loginIconText: { fontSize: 24 },
+  loginIconText: { fontSize: 24, color: Colors.textInverse },
   loginTitle: { ...Typography.h4, color: Colors.textPrimary, fontFamily: FontFamily.arabicBold, textAlign: 'right' },
   loginSubtitle: { ...Typography.bodySmall, color: Colors.textSecondary, textAlign: 'right' },
 
@@ -147,7 +148,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: Colors.divider,
   },
   menuRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: Spacing[3] },
-  menuIcon: { fontSize: 18 },
+  menuIcon: { fontSize: 18, color: Colors.textSecondary },
   menuLabel: { ...Typography.body, color: Colors.textPrimary, fontFamily: FontFamily.arabicMedium },
   menuArrow: { fontSize: 16, color: Colors.textTertiary },
 

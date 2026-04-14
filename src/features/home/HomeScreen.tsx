@@ -11,6 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import FastImage from 'react-native-fast-image';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { HomeStackParamList } from '../../navigation/types';
 import { Colors } from '../../theme/colors';
 import { Typography, FontFamily } from '../../theme/typography';
@@ -82,12 +83,12 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View>
-            <Text style={styles.greeting}>مرحباً 👋</Text>
+            <Text style={styles.greeting}>مرحباً</Text>
             <Text style={styles.storeName}>متجر دكان</Text>
           </View>
           <TouchableOpacity style={styles.cartBtn}
             onPress={() => navigation.getParent()?.navigate('Cart')}>
-            <Text style={styles.cartIcon}>🛒</Text>
+            <MaterialCommunityIcons name="cart-outline" size={24} color={Colors.textPrimary} />
             {cartCount > 0 && (
               <View style={styles.cartBadge}>
                 <Text style={styles.cartBadgeText}>{cartCount}</Text>
@@ -102,7 +103,7 @@ export default function HomeScreen() {
           onPress={() => navigation.navigate('Search')}
           activeOpacity={0.9}
         >
-          <Text style={styles.searchIcon}>🔍</Text>
+          <MaterialCommunityIcons name="magnify" size={18} color={Colors.textTertiary} />
           <Text style={styles.searchPlaceholder}>ابحث عن منتج، ماركة، أو قسم...</Text>
         </TouchableOpacity>
       </View>
@@ -146,7 +147,7 @@ export default function HomeScreen() {
         <SaleBanner onPress={() => handleSeeAll('sale', 'عروض اليوم')} />
 
         <Section
-          title="عروض اليوم 🔥"
+          title="عروض اليوم"
           onSeeAll={() => handleSeeAll('sale', 'عروض اليوم')}
         >
           {isLoading ? (
@@ -272,8 +273,14 @@ function Section({ title, onSeeAll, children }: SectionProps) {
 function SaleBanner({ onPress }: { onPress: () => void }) {
   return (
     <TouchableOpacity style={styles.saleBanner} onPress={onPress} activeOpacity={0.9}>
-      <Text style={styles.saleBannerText}>🔥 عروض حصرية – وفّر حتى 70%</Text>
-      <Text style={styles.saleBannerCta}>تسوّق الآن ←</Text>
+      <View style={styles.saleBannerTextRow}>
+        <MaterialCommunityIcons name="fire" size={16} color={Colors.primary} />
+        <Text style={styles.saleBannerText}>عروض حصرية – وفّر حتى 70%</Text>
+      </View>
+      <View style={styles.saleBannerCtaRow}>
+        <Text style={styles.saleBannerCta}>تسوّق الآن</Text>
+        <MaterialCommunityIcons name="chevron-left" size={18} color={Colors.primary} />
+      </View>
     </TouchableOpacity>
   );
 }
@@ -311,7 +318,6 @@ const styles = StyleSheet.create({
   greeting: { ...Typography.caption, color: Colors.textSecondary, textAlign: 'right' },
   storeName: { ...Typography.h3, color: Colors.textPrimary, fontFamily: FontFamily.arabicBold, textAlign: 'right' },
   cartBtn: { position: 'relative', padding: Spacing[2] },
-  cartIcon: { fontSize: 24 },
   cartBadge: {
     position: 'absolute', top: 0, right: 0,
     backgroundColor: Colors.error, borderRadius: BorderRadius.full,
@@ -329,7 +335,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  searchIcon: { fontSize: 16 },
   searchPlaceholder: { ...Typography.body, color: Colors.placeholder, fontFamily: FontFamily.arabicRegular, flex: 1 },
 
   // Scroll
@@ -361,8 +366,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.secondary,
     borderRadius: BorderRadius.xl, padding: Spacing[5],
     flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center',
+    gap: Spacing[2],
   },
-  saleBannerText: { ...Typography.bodySmall, color: Colors.textInverse, fontFamily: FontFamily.arabicBold, flex: 1 },
+  saleBannerTextRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: Spacing[1.5], flex: 1 },
+  saleBannerText: { ...Typography.bodySmall, color: Colors.textInverse, fontFamily: FontFamily.arabicBold, flex: 1, textAlign: 'right' },
+  saleBannerCtaRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 2 },
   saleBannerCta: { ...Typography.labelLarge, color: Colors.primary, fontFamily: FontFamily.arabicBold },
 
   // Grid

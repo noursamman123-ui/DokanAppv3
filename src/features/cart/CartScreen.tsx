@@ -9,6 +9,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import FastImage from 'react-native-fast-image';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { CartStackParamList } from '../../navigation/types';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
@@ -96,7 +97,7 @@ export default function CartScreen() {
 
       {isEmpty ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>🛒</Text>
+          <MaterialCommunityIcons name="cart-outline" style={styles.emptyIcon} />
           <Text style={styles.emptyTitle}>سلتك فارغة</Text>
           <Text style={styles.emptySubtitle}>ابدأ بإضافة المنتجات إلى سلة التسوق</Text>
           <TouchableOpacity

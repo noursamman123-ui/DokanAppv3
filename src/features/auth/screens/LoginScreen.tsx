@@ -20,6 +20,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { AuthStackParamList } from '../../../navigation/types';
 import { Colors } from '../../../theme/colors';
 import { Typography, FontFamily, FontSize } from '../../../theme/typography';
@@ -142,7 +143,10 @@ export default function LoginScreen({ navigation }: Props) {
                 style={styles.eyeBtn}
                 onPress={() => setShowPassword(!showPassword)}
               >
-                <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁️'}</Text>
+                <MaterialCommunityIcons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  style={styles.eyeIcon}
+                />
               </TouchableOpacity>
             </View>
             {errors.password && (
@@ -221,7 +225,7 @@ const styles = StyleSheet.create({
   passwordWrapper: { position: 'relative' },
   passwordInput: { paddingLeft: 48 },
   eyeBtn: { position: 'absolute', left: Spacing[3], top: 14 },
-  eyeIcon: { fontSize: 18 },
+  eyeIcon: { fontSize: 18, color: Colors.textSecondary },
 
   errorText: { ...Typography.caption, color: Colors.error, textAlign: 'right' },
 

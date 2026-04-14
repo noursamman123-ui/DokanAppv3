@@ -8,6 +8,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import FastImage from 'react-native-fast-image';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { HomeStackParamList } from '../../navigation/types';
 import { useWishlistStore } from '../../store/wishlistStore';
 import { useCartStore } from '../../store/cartStore';
@@ -59,7 +60,10 @@ export default function WishlistScreen() {
       </TouchableOpacity>
       <View style={styles.actions}>
         <TouchableOpacity style={styles.moveBtn} onPress={() => handleMoveToCart(item)}>
-          <Text style={styles.moveBtnText}>نقل للسلة 🛒</Text>
+          <View style={styles.moveBtnContent}>
+            <MaterialCommunityIcons name="cart-outline" style={styles.moveBtnIcon} />
+            <Text style={styles.moveBtnText}>نقل للسلة</Text>
+          </View>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => removeItem(item.product_id)}>
           <Text style={styles.removeText}>إزالة</Text>
@@ -78,7 +82,7 @@ export default function WishlistScreen() {
 
       {items.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>♡</Text>
+          <MaterialCommunityIcons name="heart-outline" style={styles.emptyIcon} />
           <Text style={styles.emptyTitle}>قائمة المفضلة فارغة</Text>
           <Text style={styles.emptySubtitle}>أضف منتجاتك المفضلة هنا لتتمكن من الوصول إليها بسهولة</Text>
         </View>
@@ -119,6 +123,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center',
     borderTopWidth: 1, borderTopColor: Colors.divider, paddingHorizontal: Spacing[3], paddingVertical: Spacing[2],
   },
+  moveBtnContent: { flexDirection: 'row-reverse', alignItems: 'center', gap: Spacing[1.5] },
+  moveBtnIcon: { fontSize: 16, color: Colors.textInverse },
   moveBtn: { backgroundColor: Colors.primary, borderRadius: BorderRadius.md, paddingHorizontal: Spacing[4], paddingVertical: Spacing[2] },
   moveBtnText: { ...Typography.buttonSmall, color: Colors.textInverse, fontFamily: FontFamily.arabicBold },
   removeText: { ...Typography.labelSmall, color: Colors.error },

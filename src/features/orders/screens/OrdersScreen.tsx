@@ -6,6 +6,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, Activity
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { AccountStackParamList } from '../../../navigation/types';
 import { OrdersService } from '../../../api/orders.service';
 import { useAuthStore } from '../../../store/authStore';
@@ -136,12 +137,12 @@ export default function OrdersScreen() {
         <ActivityIndicator style={styles.loader} size="large" color={Colors.primary} />
       ) : !isAuthenticated ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyIcon}>🔐</Text>
+          <MaterialCommunityIcons name="lock-outline" style={styles.emptyIcon} />
           <Text style={styles.emptyText}>يرجى تسجيل الدخول لعرض طلباتك السابقة</Text>
         </View>
       ) : error ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyIcon}>⚠️</Text>
+          <MaterialCommunityIcons name="alert-circle-outline" style={styles.emptyIcon} />
           <Text style={styles.emptyText}>حدث خطأ أثناء جلب الطلبات</Text>
           <Text style={styles.errorDetail}>{getErrorMessage(error)}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
@@ -157,7 +158,7 @@ export default function OrdersScreen() {
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>📦</Text>
+              <MaterialCommunityIcons name="package-variant-closed" style={styles.emptyIcon} />
               <Text style={styles.emptyText}>لا توجد طلبات سابقة</Text>
             </View>
           }
@@ -174,7 +175,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing[4], flexDirection: 'row-reverse', alignItems: 'center',
     justifyContent: 'space-between', ...Shadows.sm,
   },
-  backIcon: { fontSize: 22, color: Colors.textPrimary },
+  backIcon: { fontSize: 16, color: Colors.textPrimary },
   title: { ...Typography.h4, color: Colors.textPrimary, fontFamily: FontFamily.arabicBold },
   list: { padding: Spacing[4], paddingBottom: 100 },
   loader: { flex: 1, justifyContent: 'center' },

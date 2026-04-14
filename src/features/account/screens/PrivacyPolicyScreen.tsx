@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Activi
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { AccountStackParamList } from '../../../navigation/types';
 import { PrivacyPolicyService } from '../../../api/privacy-policy.service';
 import { Colors } from '../../../theme/colors';
@@ -48,7 +49,7 @@ export default function PrivacyPolicyScreen() {
         <ActivityIndicator style={styles.loader} size="large" color={Colors.primary} />
       ) : error || !data ? (
         <View style={styles.errorWrap}>
-          <Text style={styles.errorIcon}>⚠️</Text>
+          <MaterialCommunityIcons name="alert-circle-outline" style={styles.errorIcon} />
           <Text style={styles.errorTitle}>تعذر تحميل صفحة السياسات</Text>
           <Text style={styles.errorSubTitle}>تحقق من الاتصال بالإنترنت ثم أعد المحاولة</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
@@ -87,6 +88,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     ...Typography.labelLarge,
+    fontSize: 16,
     color: Colors.textPrimary,
     fontFamily: FontFamily.arabicBold,
   },
@@ -159,4 +161,3 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.arabicBold,
   },
 });
-

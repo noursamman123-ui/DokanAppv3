@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, StatusBar, Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform, PermissionsAndroid } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import Geolocation from '@react-native-community/geolocation';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { AccountStackParamList } from '../../../navigation/types';
 import { useAuthStore } from '../../../store/authStore';
 import { AuthService } from '../../../api/auth.service';
@@ -170,7 +171,14 @@ export default function EditAddressScreen() {
       <ScrollView contentContainerStyle={styles.form} showsVerticalScrollIndicator={false}>
         
         <TouchableOpacity style={styles.locationBtn} onPress={handleGetLocation} disabled={isLocationLoading}>
-          {isLocationLoading ? <ActivityIndicator color={Colors.primary} /> : <Text style={styles.locationBtnText}>📍 تحديد موقعي الحالي</Text>}
+          {isLocationLoading ? (
+            <ActivityIndicator color={Colors.primary} />
+          ) : (
+            <View style={styles.locationBtnContent}>
+              <Text style={styles.locationBtnText}>تحديد موقعي الحالي</Text>
+              <MaterialCommunityIcons name="map-marker-outline" style={styles.locationBtnIcon} />
+            </View>
+          )}
         </TouchableOpacity>
 
         {[
@@ -205,13 +213,15 @@ export default function EditAddressScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: { backgroundColor: Colors.surface, paddingTop: Spacing[10], paddingBottom: Spacing[3], paddingHorizontal: Spacing[4], flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', ...Shadows.sm },
-  backIcon: { fontSize: 22, color: Colors.textPrimary },
+  backIcon: { fontSize: 16, color: Colors.textPrimary },
   title: { ...Typography.h4, color: Colors.textPrimary, fontFamily: FontFamily.arabicBold },
   form: { padding: Spacing[5], gap: Spacing[4], paddingBottom: Spacing[10] },
   field: { gap: Spacing[1.5] },
   label: { ...Typography.label, color: Colors.textPrimary, fontFamily: FontFamily.arabicMedium, textAlign: 'right' },
   input: { backgroundColor: Colors.inputBackground, borderWidth: 1, borderColor: Colors.inputBorder, borderRadius: BorderRadius.md, paddingHorizontal: Spacing[3], paddingVertical: Spacing[3], fontSize: FontSize.base, color: Colors.textPrimary, fontFamily: FontFamily.arabicRegular },
   locationBtn: { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.primary, borderRadius: BorderRadius.md, paddingVertical: Spacing[3], alignItems: 'center', marginBottom: Spacing[2] },
+  locationBtnContent: { flexDirection: 'row-reverse', alignItems: 'center', gap: Spacing[1.5] },
+  locationBtnIcon: { fontSize: 18, color: Colors.primary },
   locationBtnText: { ...Typography.labelLarge, color: Colors.primary, fontFamily: FontFamily.arabicMedium },
   saveBtn: { backgroundColor: Colors.primary, borderRadius: BorderRadius.xl, paddingVertical: Spacing[4], alignItems: 'center', marginTop: Spacing[4] },
   disabled: { opacity: 0.7 },

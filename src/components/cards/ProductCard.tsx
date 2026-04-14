@@ -7,6 +7,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, Dimensions,
 } from 'react-native';
 import FastImage from 'react-native-fast-image';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { Product, getDiscountPercent } from '../../types';
 import { Colors } from '../../theme/colors';
@@ -46,18 +47,73 @@ function ProductCard({ product, onPress, horizontal = false }: ProductCardProps)
   const imageUrl = resolveMediaUrl(product.images[0]?.src);
   const [showAddSuccessModal, setShowAddSuccessModal] = useState(false);
   
-  // Clean price string: handle both numbers and strings, keep decimal point
+  const pickFirstNonEmpty = (...values: Array<string | number | undefined | null>) =>
+    values.find((value) => value !== undefined && value !== null && String(value).trim() !== '');
+
+  // Clean price string: handle strings, Arabic digits, and thousand separators safely
   const cleanPrice = (val: any) => {
     if (val === undefined || val === null || val === '') return '0';
-    const str = String(val);
-    // Keep only digits and the FIRST dot/comma as decimal separator
-    const cleaned = str.replace(/[^\d.,]/g, '').replace(',', '.');
+    const str = String(val)
+      .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+      .replace(/٫/g, '.')
+      .replace(/٬/g, ',');
+
+    // Remove currency/extra chars, keep separators then normalize them
+    const stripped = str.replace(/[^\d.,]/g, '');
+    const hasDot = stripped.includes('.');
+    const hasComma = stripped.includes(',');
+
+    let normalized = stripped;
+    if (hasDot && hasComma) {
+      normalized = stripped.replace(/,/g, '');
+    } else if (!hasDot && hasComma) {
+      const commas = stripped.match(/,/g)?.length ?? 0;
+      const [intPart = '', decPart = ''] = stripped.split(',');
+      const looksLikeDecimal = commas === 1 && decPart.length > 0 && decPart.length <= 2;
+      normalized = looksLikeDecimal ? `${intPart}.${decPart}` : stripped.replace(/,/g, '');
+    }
+
+    // Keep only the first decimal dot (if any)
+    const firstDot = normalized.indexOf('.');
+    const cleaned = firstDot >= 0
+      ? `${normalized.slice(0, firstDot + 1)}${normalized.slice(firstDot + 1).replace(/\./g, '')}`
+      : normalized;
+
     return cleaned || '0';
   };
 
-  const price = cleanPrice(product.prices?.price ?? legacyProduct.sale_price ?? legacyProduct.price);
-  const regularPrice = cleanPrice(product.prices?.regular_price ?? legacyProduct.regular_price ?? legacyProduct.price);
-  const salePrice = cleanPrice(product.prices?.sale_price ?? legacyProduct.sale_price ?? legacyProduct.price);
+  const price = cleanPrice(
+    pickFirstNonEmpty(
+      product.prices?.price,
+      product.on_sale ? legacyProduct.sale_price : undefined,
+      legacyProduct.price,
+      legacyProduct.regular_price,
+      product.prices?.regular_price,
+      '0',
+    )
+  );
+
+  const regularPrice = cleanPrice(
+    pickFirstNonEmpty(
+      product.prices?.regular_price,
+      legacyProduct.regular_price,
+      legacyProduct.price,
+      product.prices?.price,
+      price,
+      '0',
+    )
+  );
+
+  const salePrice = cleanPrice(
+    pickFirstNonEmpty(
+      product.prices?.sale_price,
+      legacyProduct.sale_price,
+      product.prices?.price,
+      legacyProduct.price,
+      price,
+      '0',
+    )
+  );
 
   const handleAddToCart = useCallback(() => {
     if (isOutOfStock) return;
@@ -138,7 +194,7 @@ function ProductCard({ product, onPress, horizontal = false }: ProductCardProps)
           />
         ) : (
           <View style={[horizontal ? styles.imageHorizontal : styles.image, styles.imageFallbackContainer]}>
-            <Text style={styles.imageFallbackText}>📦</Text>
+            <MaterialCommunityIcons name="package-variant-closed" style={styles.imageFallbackText} />
           </View>
         )}
 
@@ -158,9 +214,10 @@ function ProductCard({ product, onPress, horizontal = false }: ProductCardProps)
 
         {/* Wishlist Button */}
         <TouchableOpacity style={styles.wishlistBtn} onPress={handleWishlistToggle} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={[styles.wishlistIcon, wishlisted && styles.wishlistActive]}>
-            {wishlisted ? '♥' : '♡'}
-          </Text>
+          <MaterialCommunityIcons
+            name={wishlisted ? 'heart' : 'heart-outline'}
+            style={[styles.wishlistIcon, wishlisted && styles.wishlistActive]}
+          />
         </TouchableOpacity>
       </View>
 
@@ -171,7 +228,7 @@ function ProductCard({ product, onPress, horizontal = false }: ProductCardProps)
         {/* Rating */}
         {parseFloat(product.average_rating) > 0 && (
           <View style={styles.ratingRow}>
-            <Text style={styles.ratingStar}>⭐</Text>
+            <MaterialCommunityIcons name="star" style={styles.ratingStar} />
             <Text style={styles.ratingText}>{parseFloat(product.average_rating).toFixed(1)}</Text>
             {product.rating_count > 0 && (
               <Text style={styles.ratingCount}>({product.rating_count})</Text>
@@ -248,7 +305,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   imageFallbackText: {
-    ...Typography.bodyLarge,
+    fontSize: 28,
     color: Colors.textTertiary,
   },
   discountBadge: {
@@ -313,7 +370,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 3,
   },
-  ratingStar: { fontSize: 10 },
+  ratingStar: { fontSize: 12, color: Colors.rating },
   ratingText: {
     ...Typography.labelSmall,
     color: Colors.rating,

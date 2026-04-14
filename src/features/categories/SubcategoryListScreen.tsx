@@ -11,6 +11,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import FastImage from 'react-native-fast-image';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { CategoriesStackParamList } from '../../navigation/types';
 import { CategoriesService } from '../../api/categories.service';
 import { Category } from '../../types';
@@ -85,7 +86,7 @@ export default function SubcategoryListScreen() {
           />
         ) : (
           <View style={styles.placeholderImage}>
-            <Text style={styles.placeholderText}>📦</Text>
+            <MaterialCommunityIcons name="package-variant-closed" size={32} color={Colors.textTertiary} />
           </View>
         )}
       </View>
@@ -158,7 +159,7 @@ const styles = StyleSheet.create({
     ...Shadows.sm,
   },
   backBtn: { width: 40, alignItems: 'center' },
-  backIcon: { fontSize: 22, color: Colors.textPrimary },
+  backIcon: { fontSize: 16, color: Colors.textPrimary },
   headerTitle: {
     ...Typography.h4, color: Colors.textPrimary,
     fontFamily: FontFamily.arabicBold, flex: 1, textAlign: 'center',
@@ -181,7 +182,6 @@ const styles = StyleSheet.create({
   imageContainer: { width: '100%', height: ITEM_WIDTH * 0.8, backgroundColor: Colors.surfaceSecondary },
   image: { width: '100%', height: '100%' },
   placeholderImage: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
-  placeholderText: { fontSize: 40 },
   info: { padding: Spacing[3], alignItems: 'center' },
   name: { ...Typography.label, color: Colors.textPrimary, fontFamily: FontFamily.arabicSemiBold, textAlign: 'center' },
   count: { ...Typography.caption, color: Colors.textTertiary, marginTop: 2 },

@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   content: { flexGrow: 1, padding: Spacing[5], paddingTop: Spacing[8] },
   header: { marginBottom: Spacing[6] },
   backBtn: { marginBottom: Spacing[4] },
-  backText: { fontSize: 22, color: Colors.textPrimary },
+  backText: { fontSize: 16, color: Colors.textPrimary },
   title: { ...Typography.h2, color: Colors.textPrimary, textAlign: 'right', marginBottom: Spacing[1] },
   subtitle: { ...Typography.body, color: Colors.textSecondary, textAlign: 'right' },
   form: { gap: Spacing[3] },

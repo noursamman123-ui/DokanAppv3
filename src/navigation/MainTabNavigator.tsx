@@ -6,6 +6,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, Text, StyleSheet, Platform } from 'react-native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { MainTabParamList } from './types';
 import { Colors } from '../theme/colors';
 import { FontFamily, FontSize } from '../theme/typography';
@@ -20,13 +21,12 @@ import AccountStackNavigator from './stacks/AccountStackNavigator';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-// ─── Tab Icons (text-based fallback until vector icons are set up) ─────────
-const TabIcons: Record<string, string> = {
-  Home: '🏠',
-  Categories: '☰',
-  Cart: '🛒',
-  Wishlist: '♡',
-  Account: '👤',
+const TabIcons: Record<string, { active: string; inactive: string }> = {
+  Home: { active: 'home', inactive: 'home-outline' },
+  Categories: { active: 'view-grid', inactive: 'view-grid-outline' },
+  Cart: { active: 'cart', inactive: 'cart-outline' },
+  Wishlist: { active: 'heart', inactive: 'heart-outline' },
+  Account: { active: 'account', inactive: 'account-outline' },
 };
 
 interface TabIconProps {
@@ -38,9 +38,11 @@ interface TabIconProps {
 function TabIcon({ name, focused, badgeCount }: TabIconProps) {
   return (
     <View style={styles.iconContainer}>
-      <Text style={[styles.icon, focused && styles.iconActive]}>
-        {TabIcons[name]}
-      </Text>
+      <MaterialCommunityIcons
+        name={focused ? TabIcons[name].active : TabIcons[name].inactive}
+        size={22}
+        color={focused ? Colors.tabActive : Colors.tabInactive}
+      />
       {badgeCount !== undefined && badgeCount > 0 && (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>
@@ -135,13 +137,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  icon: {
-    fontSize: 22,
-    opacity: 0.5,
-  },
-  iconActive: {
-    opacity: 1,
   },
   badge: {
     position: 'absolute',

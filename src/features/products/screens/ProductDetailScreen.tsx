@@ -11,6 +11,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import FastImage from 'react-native-fast-image';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { HomeStackParamList } from '../../../navigation/types';
 import { ProductsService } from '../../../api/products.service';
 import { Product, getDiscountPercent } from '../../../types';
@@ -211,12 +212,13 @@ export default function ProductDetailScreen() {
       {/* Fixed Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-          <Text style={styles.headerBtnIcon}>رجوع</Text>
+          <Text style={styles.headerBackText}>رجوع</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={handleWishlistToggle} style={styles.headerBtn}>
-          <Text style={[styles.headerBtnIcon, styles.wishlistHeaderIcon, wishlisted && styles.wishlistHeaderIconActive]}>
-            {wishlisted ? '♥' : '♡'}
-          </Text>
+          <MaterialCommunityIcons
+            name={wishlisted ? 'heart' : 'heart-outline'}
+            style={[styles.headerBtnIcon, styles.wishlistHeaderIcon, wishlisted && styles.wishlistHeaderIconActive]}
+          />
         </TouchableOpacity>
       </View>
 
@@ -231,7 +233,7 @@ export default function ProductDetailScreen() {
             />
           ) : (
             <View style={[styles.mainImage, styles.mainImageFallback]}>
-              <Text style={styles.mainImageFallbackText}>📦</Text>
+              <MaterialCommunityIcons name="package-variant-closed" style={styles.mainImageFallbackText} />
             </View>
           )}
 
@@ -260,7 +262,7 @@ export default function ProductDetailScreen() {
                     />
                   ) : (
                     <View style={[styles.thumbnailImage, styles.mainImageFallback]}>
-                      <Text style={styles.thumbnailFallbackText}>📦</Text>
+                      <MaterialCommunityIcons name="package-variant-closed" style={styles.thumbnailFallbackText} />
                     </View>
                   )}
                 </TouchableOpacity>
@@ -277,7 +279,7 @@ export default function ProductDetailScreen() {
           {/* Rating */}
           {parseFloat(product.average_rating) > 0 && (
             <View style={styles.ratingRow}>
-              <Text style={styles.ratingStar}>⭐</Text>
+              <MaterialCommunityIcons name="star" style={styles.ratingStar} />
               <Text style={styles.ratingText}>{parseFloat(product.average_rating).toFixed(1)}</Text>
               <Text style={styles.ratingCount}>({product.rating_count} تقييم)</Text>
             </View>
@@ -449,6 +451,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.overlayWhite, alignItems: 'center', justifyContent: 'center',
   },
   headerBtnIcon: { fontSize: 20 },
+  headerBackText: { fontSize: 16, color: Colors.textPrimary, lineHeight: 18 },
   wishlistHeaderIcon: { color: Colors.textSecondary, lineHeight: 22 },
   wishlistHeaderIconActive: { color: '#E02020' },
 
@@ -459,7 +462,7 @@ const styles = StyleSheet.create({
   },
   mainImage: { width: width, height: width * 0.75 },
   mainImageFallback: { alignItems: 'center', justifyContent: 'center' },
-  mainImageFallbackText: { ...Typography.h2, color: Colors.textTertiary },
+  mainImageFallbackText: { fontSize: 40, color: Colors.textTertiary },
   discountBadge: {
     position: 'absolute', top: Spacing[16], left: Spacing[4],
     backgroundColor: Colors.sale, borderRadius: BorderRadius.sm,
@@ -473,12 +476,12 @@ const styles = StyleSheet.create({
   },
   thumbnailActive: { borderColor: Colors.primary },
   thumbnailImage: { width: '100%', height: '100%' },
-  thumbnailFallbackText: { ...Typography.caption, color: Colors.textTertiary },
+  thumbnailFallbackText: { fontSize: 14, color: Colors.textTertiary },
 
   infoSection: { backgroundColor: Colors.surface, marginTop: Spacing[2], padding: Spacing[5] },
   productName: { ...Typography.h3, color: Colors.textPrimary, fontFamily: FontFamily.arabicBold, textAlign: 'right', marginBottom: Spacing[2] },
   ratingRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 4, marginBottom: Spacing[3] },
-  ratingStar: { fontSize: 14 },
+  ratingStar: { fontSize: 14, color: Colors.rating },
   ratingText: { ...Typography.label, color: Colors.rating, fontFamily: FontFamily.bold },
   ratingCount: { ...Typography.caption, color: Colors.textTertiary },
 

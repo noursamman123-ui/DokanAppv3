@@ -7,8 +7,9 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import FastImage from 'react-native-fast-image';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { CategoriesStackParamList } from '../../navigation/types';
 import { CategoriesService } from '../../api/categories.service';
 import { Category } from '../../types';
@@ -23,6 +24,7 @@ type NavProp = NativeStackNavigationProp<CategoriesStackParamList, 'CategoriesSc
 
 export default function CategoriesScreen() {
   const navigation = useNavigation<NavProp>();
+  const queryClient = useQueryClient();
 
   const { data: apiCategories, isLoading, refetch } = useQuery({
     queryKey: ['categories', 0],
@@ -32,6 +34,7 @@ export default function CategoriesScreen() {
   });
 
   const [refreshing, setRefreshing] = React.useState(false);
+  const [navigatingCategoryId, setNavigatingCategoryId] = React.useState<number | null>(null);
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -39,7 +42,7 @@ export default function CategoriesScreen() {
     setRefreshing(false);
   }, [refetch]);
 
-  const categories = apiCategories ?? [];
+  const categories = React.useMemo(() => apiCategories ?? [], [apiCategories]);
 
   React.useEffect(() => {
     const preloadSources = categories
@@ -57,18 +60,50 @@ export default function CategoriesScreen() {
     }
   }, [categories]);
 
-  const handleCategoryPress = (cat: Category) => {
-    navigation.navigate('SubcategoryList', {
-      categoryId: cat.id,
-      categoryName: cat.name,
-    });
+  const handleCategoryPress = async (cat: Category) => {
+    if (navigatingCategoryId === cat.id) return;
+    setNavigatingCategoryId(cat.id);
+
+    try {
+      const subcategories = await queryClient.fetchQuery({
+        queryKey: ['subcategories', cat.id],
+        queryFn: () => CategoriesService.getSubcategories(cat.id),
+        staleTime: 60 * 1000,
+      });
+
+      if (subcategories.length > 0) {
+        navigation.navigate('SubcategoryList', {
+          categoryId: cat.id,
+          categoryName: cat.name,
+        });
+      } else {
+        navigation.navigate('ProductList', {
+          categoryId: cat.id,
+          categoryName: cat.name,
+        });
+      }
+    } catch {
+      navigation.navigate('ProductList', {
+        categoryId: cat.id,
+        categoryName: cat.name,
+      });
+    } finally {
+      setNavigatingCategoryId(null);
+    }
   };
 
   const renderCategory = ({ item }: { item: Category }) => {
     const imageUri = resolveMediaUrl(item.image?.src);
 
     return (
-      <TouchableOpacity style={styles.card} onPress={() => handleCategoryPress(item)} activeOpacity={0.85}>
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => {
+          handleCategoryPress(item);
+        }}
+        activeOpacity={0.85}
+        disabled={navigatingCategoryId === item.id}
+      >
         <View style={styles.imageWrapper}>
           {imageUri ? (
             <FastImage
@@ -78,7 +113,7 @@ export default function CategoriesScreen() {
             />
           ) : (
             <View style={styles.placeholder}>
-              <Text style={styles.placeholderEmoji}>🛍️</Text>
+              <MaterialCommunityIcons name="shopping-outline" size={28} color={Colors.primary} />
             </View>
           )}
         </View>
@@ -119,7 +154,7 @@ export default function CategoriesScreen() {
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.placeholderEmoji}>📂</Text>
+              <MaterialCommunityIcons name="folder-outline" size={28} color={Colors.textTertiary} />
               <Text style={styles.count}>لا توجد أقسام متاحة حالياً</Text>
             </View>
           }
@@ -160,7 +195,6 @@ const styles = StyleSheet.create({
   },
   image: { width: 64, height: 64 },
   placeholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  placeholderEmoji: { fontSize: 28 },
   categoryName: {
     ...Typography.labelSmall, color: Colors.textPrimary,
     fontFamily: FontFamily.arabicMedium, textAlign: 'center',

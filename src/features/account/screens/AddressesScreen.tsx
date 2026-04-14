@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuthStore } from '../../../store/authStore';
 import { Colors } from '../../../theme/colors';
 import { Typography, FontFamily } from '../../../theme/typography';
@@ -43,7 +44,12 @@ export default function AddressesScreen() {
                   {[data.city, data.state, data.country].filter(Boolean).join('، ')}
                 </Text>
                 {data.postcode ? <Text style={styles.addressLine}>الرمز البريدي: {data.postcode}</Text> : null}
-                {data.phone && <Text style={styles.addressLine}>📞 {data.phone}</Text>}
+                {data.phone && (
+                  <View style={styles.phoneRow}>
+                    <Text style={styles.addressLine}>{data.phone}</Text>
+                    <MaterialCommunityIcons name="phone-outline" style={styles.phoneIcon} />
+                  </View>
+                )}
               </View>
             ) : (
               <View style={styles.emptyAddress}>
@@ -63,7 +69,7 @@ export default function AddressesScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: { backgroundColor: Colors.surface, paddingTop: Spacing[10], paddingBottom: Spacing[3], paddingHorizontal: Spacing[4], flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', ...Shadows.sm },
-  backIcon: { fontSize: 22, color: Colors.textPrimary },
+  backIcon: { fontSize: 16, color: Colors.textPrimary },
   title: { ...Typography.h4, color: Colors.textPrimary, fontFamily: FontFamily.arabicBold },
   content: { padding: Spacing[4], gap: Spacing[3] },
   card: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing[4], ...Shadows.card },
@@ -73,6 +79,8 @@ const styles = StyleSheet.create({
   addressContent: { gap: Spacing[1] },
   addressName: { ...Typography.bodyLarge, color: Colors.textPrimary, fontFamily: FontFamily.arabicMedium, textAlign: 'right' },
   addressLine: { ...Typography.body, color: Colors.textSecondary, textAlign: 'right' },
+  phoneRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: Spacing[1.5] },
+  phoneIcon: { fontSize: 16, color: Colors.textSecondary },
   emptyAddress: { alignItems: 'center', gap: Spacing[2], paddingVertical: Spacing[4] },
   emptyText: { ...Typography.body, color: Colors.textTertiary },
   addBtn: { ...Typography.labelLarge, color: Colors.primary },

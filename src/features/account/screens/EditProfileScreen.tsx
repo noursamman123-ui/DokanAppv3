@@ -66,7 +66,7 @@ export default function EditProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: { backgroundColor: Colors.surface, paddingTop: Spacing[10], paddingBottom: Spacing[3], paddingHorizontal: Spacing[4], flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', ...Shadows.sm },
-  backIcon: { fontSize: 22, color: Colors.textPrimary },
+  backIcon: { fontSize: 16, color: Colors.textPrimary },
   title: { ...Typography.h4, color: Colors.textPrimary, fontFamily: FontFamily.arabicBold },
   form: { padding: Spacing[5], gap: Spacing[4] },
   field: { gap: Spacing[1.5] },

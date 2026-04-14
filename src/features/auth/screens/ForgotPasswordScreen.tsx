@@ -77,7 +77,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.surface, padding: Spacing[5], paddingTop: Spacing[10] },
   backBtn: { marginBottom: Spacing[6] },
-  backText: { fontSize: 22, color: Colors.textPrimary },
+  backText: { fontSize: 16, color: Colors.textPrimary },
   title: { ...Typography.h2, color: Colors.textPrimary, textAlign: 'right', marginBottom: Spacing[2] },
   subtitle: { ...Typography.body, color: Colors.textSecondary, textAlign: 'right', marginBottom: Spacing[6] },
   input: {

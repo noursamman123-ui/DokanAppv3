@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { AccountStackParamList } from '../../../navigation/types';
 import { Colors } from '../../../theme/colors';
 import { Typography, FontFamily } from '../../../theme/typography';
@@ -25,7 +26,7 @@ export default function TermsScreen() {
       </View>
 
       <View style={styles.empty}>
-        <Text style={styles.emptyIcon}>📋</Text>
+        <MaterialCommunityIcons name="file-document-outline" style={styles.emptyIcon} />
         <Text style={styles.emptyText}>قريبًا</Text>
       </View>
     </View>
@@ -46,6 +47,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     ...Typography.labelLarge,
+    fontSize: 16,
     color: Colors.textPrimary,
     fontFamily: FontFamily.arabicBold,
   },

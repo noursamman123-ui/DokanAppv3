@@ -9,6 +9,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import FastImage from 'react-native-fast-image';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { HomeStackParamList } from '../../navigation/types';
 import { ProductsService } from '../../api/products.service';
 import { SearchHistory } from '../../utils/storage';
@@ -72,7 +73,7 @@ export default function SearchScreen() {
           />
         ) : (
           <View style={[styles.resultImage, styles.imageFallback]}>
-            <Text style={styles.imageFallbackText}>📦</Text>
+            <MaterialCommunityIcons name="package-variant-closed" style={styles.imageFallbackText} />
           </View>
         )}
         <View style={styles.resultInfo}>
@@ -107,7 +108,7 @@ export default function SearchScreen() {
         />
         {query.length > 0 && (
           <TouchableOpacity onPress={() => setQuery('')}>
-            <Text style={styles.clearBtn}>✕</Text>
+            <MaterialCommunityIcons name="close" style={styles.clearBtn} />
           </TouchableOpacity>
         )}
       </View>
@@ -123,7 +124,7 @@ export default function SearchScreen() {
           </View>
           {recentSearches.map((term, i) => (
             <TouchableOpacity key={i} style={styles.recentRow} onPress={() => handleRecentPress(term)}>
-              <Text style={styles.recentIcon}>🕐</Text>
+              <MaterialCommunityIcons name="history" style={styles.recentIcon} />
               <Text style={styles.recentText}>{term}</Text>
             </TouchableOpacity>
           ))}
@@ -141,7 +142,7 @@ export default function SearchScreen() {
           ListEmptyComponent={
             !isLoading ? (
               <View style={styles.noResults}>
-                <Text style={styles.noResultsIcon}>🔍</Text>
+                <MaterialCommunityIcons name="magnify" style={styles.noResultsIcon} />
                 <Text style={styles.noResultsText}>لا توجد نتائج لـ "{query}"</Text>
               </View>
             ) : null
@@ -159,7 +160,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing[4], flexDirection: 'row-reverse', alignItems: 'center', gap: Spacing[3],
   },
   backBtn: {},
-  backIcon: { fontSize: 22, color: Colors.textPrimary },
+  backIcon: { fontSize: 16, color: Colors.textPrimary },
   input: {
     flex: 1, backgroundColor: Colors.inputBackground, borderRadius: BorderRadius.lg,
     paddingHorizontal: Spacing[4], paddingVertical: Spacing[2.5],
@@ -172,7 +173,7 @@ const styles = StyleSheet.create({
   recentTitle: { ...Typography.h4, color: Colors.textPrimary, fontFamily: FontFamily.arabicBold },
   clearAll: { ...Typography.label, color: Colors.primary },
   recentRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: Spacing[3], paddingVertical: Spacing[3], borderBottomWidth: 1, borderBottomColor: Colors.divider },
-  recentIcon: { fontSize: 16 },
+  recentIcon: { fontSize: 16, color: Colors.textTertiary },
   recentText: { ...Typography.body, color: Colors.textPrimary, fontFamily: FontFamily.arabicRegular },
   resultsList: { padding: Spacing[4] },
   resultItem: {
@@ -181,11 +182,11 @@ const styles = StyleSheet.create({
   },
   resultImage: { width: 70, height: 70, borderRadius: BorderRadius.md, backgroundColor: Colors.surfaceSecondary },
   imageFallback: { alignItems: 'center', justifyContent: 'center' },
-  imageFallbackText: { ...Typography.body, color: Colors.textTertiary },
+  imageFallbackText: { fontSize: 24, color: Colors.textTertiary },
   resultInfo: { flex: 1, gap: Spacing[1] },
   resultName: { ...Typography.bodySmall, color: Colors.textPrimary, fontFamily: FontFamily.arabicMedium, textAlign: 'right' },
   resultPrice: { ...Typography.priceSmall, color: Colors.sale, fontFamily: FontFamily.arabicBold, textAlign: 'right' },
   noResults: { alignItems: 'center', paddingTop: Spacing[16] },
-  noResultsIcon: { fontSize: 48, marginBottom: Spacing[4] },
+  noResultsIcon: { fontSize: 48, marginBottom: Spacing[4], color: Colors.textTertiary },
   noResultsText: { ...Typography.body, color: Colors.textSecondary, fontFamily: FontFamily.arabicMedium },
 });

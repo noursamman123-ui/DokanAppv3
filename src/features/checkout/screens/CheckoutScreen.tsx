@@ -18,6 +18,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { CartStackParamList } from '../../../navigation/types';
 import { useCartStore } from '../../../store/cartStore';
 import { useAuthStore } from '../../../store/authStore';
@@ -715,7 +716,10 @@ export default function CheckoutScreen() {
                 <View style={styles.radioOuter}>
                   {paymentMethod === pm.id && <View style={styles.radioInner} />}
                 </View>
-                <Text style={styles.paymentIcon}>{pm.id === 'cod' ? '💵' : '🏦'}</Text>
+                <MaterialCommunityIcons
+                  name={pm.id === 'cod' ? 'cash-multiple' : 'bank-outline'}
+                  style={styles.paymentIcon}
+                />
                 <View style={styles.paymentCopy}>
                   <Text style={styles.paymentLabel}>{pm.title}</Text>
                   {pm.description ? (
@@ -809,7 +813,7 @@ export default function CheckoutScreen() {
             <View style={styles.cityModalHeader}>
               <Text style={styles.cityModalTitle}>اختر المحافظة</Text>
               <TouchableOpacity onPress={() => setIsCityModalVisible(false)}>
-                <Text style={styles.closeText}>✕</Text>
+                <MaterialCommunityIcons name="close" style={styles.closeText} />
               </TouchableOpacity>
             </View>
             <FlatList
@@ -840,7 +844,7 @@ export default function CheckoutScreen() {
                 onPress={() => !isActionLoading && setIsOtpModalVisible(false)}
                 disabled={isActionLoading}
               >
-                <Text style={styles.closeText}>✕</Text>
+                <MaterialCommunityIcons name="close" style={styles.closeText} />
               </TouchableOpacity>
             </View>
 
@@ -902,7 +906,7 @@ export default function CheckoutScreen() {
             <View style={styles.cityModalHeader}>
               <Text style={styles.cityModalTitle}>اختر دولة الرقم</Text>
               <TouchableOpacity onPress={() => setIsPhoneCountryModalVisible(false)}>
-                <Text style={styles.closeText}>✕</Text>
+                <MaterialCommunityIcons name="close" style={styles.closeText} />
               </TouchableOpacity>
             </View>
             <FlatList
@@ -942,7 +946,7 @@ const styles = StyleSheet.create({
     ...Shadows.sm,
   },
   backBtn: { width: 40, alignItems: 'center' },
-  backIcon: { fontSize: 22, color: Colors.textPrimary },
+  backIcon: { fontSize: 16, color: Colors.textPrimary },
   headerTitle: { ...Typography.h4, color: Colors.textPrimary, fontFamily: FontFamily.arabicBold },
   scrollContent: { padding: Spacing[4], gap: Spacing[3] },
   section: {
@@ -1095,7 +1099,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.primary },
-  paymentIcon: { fontSize: 20 },
+  paymentIcon: { fontSize: 20, color: Colors.textSecondary },
   paymentCopy: { flex: 1, gap: Spacing[1] },
   paymentLabel: { ...Typography.bodySmall, color: Colors.textPrimary, fontFamily: FontFamily.arabicMedium },
   paymentDescription: { ...Typography.caption, color: Colors.textSecondary, textAlign: 'right' },
@@ -1206,7 +1210,6 @@ const styles = StyleSheet.create({
   closeText: {
     fontSize: 22,
     color: Colors.textTertiary,
-    fontFamily: FontFamily.bold,
   },
   otpHint: {
     ...Typography.body,
